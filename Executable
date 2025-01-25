@@ -1,0 +1,79 @@
+using System;
+using System.DirectoryServices.AccountManagement;
+
+namespace CheckADGroups
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Checking Active Directory group memberships...");
+
+            // Get the current user's Windows identity
+            var currentUser = Environment.UserName;
+            var currentDomain = Environment.UserDomainName;
+
+            Console.WriteLine($"Current User: {currentDomain}\\{currentUser}");
+            Console.WriteLine();
+
+            // List of groups to check for
+            var groupsToCheck = new[]
+            {
+                "Domain Admins",
+                "IT Admins",
+                "IT Scanners",
+                "YourSecurityGroupName" // Replace with real group names
+            };
+
+            try
+            {
+                using (var context = new PrincipalContext(ContextType.Domain, currentDomain))
+                {
+                    using (var userPrincipal = UserPrincipal.FindByIdentity(context, currentUser))
+                    {
+                        if (userPrincipal == null)
+                        {
+                            Console.WriteLine("User not found in Active Directory.");
+                            return;
+                        }
+
+                        Console.WriteLine("Groups the user is a member of:");
+                        foreach (var group in userPrincipal.GetGroups())
+                        {
+                            Console.WriteLine($"- {group.Name}");
+                        }
+
+                        Console.WriteLine("\nChecking for specific groups:");
+                        foreach (var groupName in groupsToCheck)
+                        {
+                            if (IsUserInGroup(userPrincipal, groupName))
+                            {
+                                Console.WriteLine($"[PASS] User is a member of '{groupName}'.");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[FAIL] User is NOT a member of '{groupName}'.");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+
+        private static bool IsUserInGroup(UserPrincipal user, string groupName)
+        {
+            foreach (var group in user.GetGroups())
+            {
+                if (group.Name.Equals(groupName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+}
